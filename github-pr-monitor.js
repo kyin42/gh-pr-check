@@ -2,6 +2,7 @@
 
 const { execSync } = require("child_process");
 const notifier = require("node-notifier");
+const readline = require("readline");
 
 function getStatusEmoji(status) {
   switch (status.toLowerCase()) {
@@ -21,15 +22,97 @@ function getStatusEmoji(status) {
   }
 }
 
-function checkAllChecksStatus(prUrl, showOutput = true, verbose = false) {
+function getOpenPRs() {
+  try {
+    console.log("Searching for open PRs...");
+    const prs = JSON.parse(
+      execSync(`gh pr list --state open --json number,title,url,author`, {
+        encoding: "utf8",
+      })
+    );
+    return prs;
+  } catch (error) {
+    console.error("Error fetching open PRs:", error.message);
+    console.error(
+      "Make sure you have gh CLI installed and authenticated, and you're in a git repository"
+    );
+    return null;
+  }
+}
+
+function promptUserForPR(prs) {
+  return new Promise((resolve) => {
+    const rl = readline.createInterface({
+      input: process.stdin,
+      output: process.stdout,
+    });
+
+    console.log(`\nFound ${prs.length} open PRs:`);
+    console.log("==============================");
+    prs.forEach((pr, index) => {
+      console.log(`${index + 1}. PR #${pr.number} - ${pr.title}`);
+      console.log(`   Author: ${pr.author.login}`);
+      console.log(`   URL: ${pr.url}\n`);
+    });
+
+    rl.question(
+      `Please select a PR (1-${prs.length}) or 'q' to quit: `,
+      (answer) => {
+        rl.close();
+
+        if (answer.toLowerCase() === "q" || answer.toLowerCase() === "quit") {
+          console.log("Exiting...");
+          resolve(null);
+          return;
+        }
+
+        const selection = parseInt(answer);
+        if (isNaN(selection) || selection < 1 || selection > prs.length) {
+          console.log(
+            `Invalid selection '${answer}'. Please enter a number between 1-${prs.length} or 'q' to quit.`
+          );
+          console.log("Exiting...");
+          process.exit(1);
+        }
+
+        const selectedPR = prs[selection - 1];
+        console.log(
+          `Selected PR #${selectedPR.number} - ${selectedPR.title}\n`
+        );
+        resolve(selectedPR.url);
+      }
+    );
+  });
+}
+
+async function selectPR(prs) {
+  if (prs.length === 0) {
+    console.log("No open PRs found in this repository");
+    console.log("Exiting...");
+    process.exit(0);
+  }
+
+  if (prs.length === 1) {
+    console.log(`Found 1 open PR: #${prs[0].number} - ${prs[0].title}`);
+    return prs[0].url;
+  }
+
+  return await promptUserForPR(prs);
+}
+
+async function checkAllChecksStatus(prUrl, showOutput = true, verbose = false) {
   try {
     if (!prUrl) {
-      console.error("Please provide a PR URL");
-      console.log("Usage: node github-pr-monitor.js <PR_URL>");
-      console.log(
-        "Example: node github-pr-monitor.js https://github.com/owner/repo/pull/123"
-      );
-      return { error: true };
+      // Try to find open PRs automatically
+      const openPRs = getOpenPRs();
+      if (!openPRs) {
+        return { error: true };
+      }
+
+      prUrl = await selectPR(openPRs);
+      if (!prUrl) {
+        return { error: true };
+      }
     }
 
     // Extract PR number from URL
@@ -223,11 +306,54 @@ const prUrl = process.argv[2];
 // Check command line options
 const singleCheck = process.argv.includes("--single");
 const verbose = process.argv.includes("--verbose");
+const help = process.argv.includes("--help") || process.argv.includes("-h");
 
-if (singleCheck) {
-  // Run single check (original behavior)
-  checkAllChecksStatus(prUrl, true, verbose);
-} else {
-  // Run continuous monitoring
-  monitorAllChecksStatus(prUrl, verbose);
+if (help) {
+  console.log(
+    "GitHub PR Monitor - Monitor GitHub PR checks with notifications"
+  );
+  console.log("");
+  console.log("Usage:");
+  console.log("  node github-pr-monitor.js [PR_URL] [OPTIONS]");
+  console.log("");
+  console.log("Arguments:");
+  console.log(
+    "  PR_URL    Optional. GitHub PR URL (e.g., https://github.com/owner/repo/pull/123)"
+  );
+  console.log(
+    "            If not provided, will search for open PRs in the current repository"
+  );
+  console.log("");
+  console.log("Options:");
+  console.log(
+    "  --single    Run a single check instead of continuous monitoring"
+  );
+  console.log("  --verbose   Show detailed information about each check");
+  console.log("  --help, -h  Show this help message");
+  console.log("");
+  console.log("Examples:");
+  console.log("  node github-pr-monitor.js");
+  console.log("  node github-pr-monitor.js --single");
+  console.log(
+    "  node github-pr-monitor.js https://github.com/owner/repo/pull/123"
+  );
+  console.log(
+    "  node github-pr-monitor.js https://github.com/owner/repo/pull/123 --verbose"
+  );
+  process.exit(0);
 }
+
+async function main() {
+  if (singleCheck) {
+    // Run single check (original behavior)
+    await checkAllChecksStatus(prUrl, true, verbose);
+  } else {
+    // Run continuous monitoring
+    await monitorAllChecksStatus(prUrl, verbose);
+  }
+}
+
+main().catch((error) => {
+  console.error("Error:", error.message);
+  process.exit(1);
+});
