@@ -25,9 +25,9 @@ function checkAllChecksStatus(prUrl, showOutput = true, verbose = false) {
   try {
     if (!prUrl) {
       console.error("Please provide a PR URL");
-      console.log("Usage: node githubcheck2.js <PR_URL>");
+      console.log("Usage: node github-pr-monitor.js <PR_URL>");
       console.log(
-        "Example: node githubcheck2.js https://github.com/owner/repo/pull/123"
+        "Example: node github-pr-monitor.js https://github.com/owner/repo/pull/123"
       );
       return { error: true };
     }

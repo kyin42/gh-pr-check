@@ -2,13 +2,13 @@
   "name": "gh-pr-check",
   "version": "1.0.0",
   "description": "A command-line tool to monitor GitHub PR checks with system notifications",
-  "main": "index.js",
+  "main": "github-pr-monitor.js",
   "bin": {
-    "gh-check": "./index.js",
-    "github-check": "./index.js"
+    "gh-check": "./github-pr-monitor.js",
+    "github-check": "./github-pr-monitor.js"
   },
   "scripts": {
-    "start": "node index.js",
+    "start": "node github-pr-monitor.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [
@@ -21,16 +21,8 @@
     "notifications",
     "github-cli"
   ],
-  "author": "Your Name <your.email@example.com>",
+  "author": "",
   "license": "MIT",
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/yourusername/gh-pr-check.git"
-  },
-  "bugs": {
-    "url": "https://github.com/yourusername/gh-pr-check/issues"
-  },
-  "homepage": "https://github.com/yourusername/gh-pr-check#readme",
   "engines": {
     "node": ">=14.0.0"
   },
@@ -42,7 +34,7 @@
     "gh": ">=2.0.0"
   },
   "files": [
-    "index.js",
+    "github-pr-monitor.js",
     "README.md"
   ]
 }
