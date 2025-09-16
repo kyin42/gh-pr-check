@@ -209,8 +209,20 @@ async function checkAllChecksStatus(prUrl, showOutput = true, verbose = false) {
 }
 
 function sendNotification(message, type = "success") {
-  const title =
-    type === "success" ? "All Checks Complete ✅" : "Checks Failed ❌";
+  let title;
+  switch (type) {
+    case "success":
+      title = "All Checks Complete ✅";
+      break;
+    case "failure":
+      title = "Checks Failed ❌";
+      break;
+    case "repeat":
+      title = "PR Status Update 🔔";
+      break;
+    default:
+      title = "PR Monitor";
+  }
 
   notifier.notify({
     title: title,
@@ -230,6 +242,35 @@ function formatDuration(startTime, endTime) {
     return `${minutes}m ${seconds}s`;
   } else {
     return `${seconds}s`;
+  }
+}
+
+async function startContinuousNotifications(
+  result,
+  completionDuration,
+  completionType
+) {
+  let notificationCount = 0;
+
+  while (true) {
+    notificationCount++;
+
+    const currentTime = new Date().toLocaleTimeString();
+    console.log(`🔔 Notification #${notificationCount} sent at ${currentTime}`);
+
+    let message =
+      completionType === "success"
+        ? `All checks completed successfully for PR #${result.prNumber}`
+        : `All checks completed with failures for PR #${result.prNumber}`;
+
+    message += `\nCompleted in ${completionDuration}`;
+
+    if (result.summary.failed.length > 0) {
+      message += `\n❌ Failed: ${result.summary.failed.join(", ")}`;
+    }
+
+    sendNotification(message, "repeat");
+    await new Promise((resolve) => setTimeout(resolve, 20000));
   }
 }
 
@@ -275,11 +316,27 @@ async function monitorAllChecksStatus(prUrl, verbose = false) {
           console.log(`❌ Failed checks: ${result.summary.failed.join(", ")}`);
         }
         sendNotification(`${message}\nCompleted in ${duration}`, "failure");
+
+        // Continue sending notifications every 20 seconds
+        console.log(
+          `\n🔔 Checks completed! Now sending notifications every 20 seconds until you close the program...`
+        );
+        console.log("Press Ctrl+C to stop\n");
+
+        await startContinuousNotifications(result, duration, "failure");
       } else {
         const message = `All checks completed successfully for PR #${result.prNumber}`;
         console.log(`\n🎉 ${message}`);
         console.log(`⏱️  Total time: ${duration} (${checkCount} checks)`);
         sendNotification(`${message}\nCompleted in ${duration}`, "success");
+
+        // Continue sending notifications every 20 seconds
+        console.log(
+          `\n🔔 Checks completed! Now sending notifications every 20 seconds until you close the program...`
+        );
+        console.log("Press Ctrl+C to stop\n");
+
+        await startContinuousNotifications(result, duration, "success");
       }
       break;
     } else {
