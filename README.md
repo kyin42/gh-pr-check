@@ -18,16 +18,34 @@ gh auth login
 
 ## Installation
 
-### Option 1: Global Install
+### Local Development Setup
+
+Since this package isn't published on npm yet, use `npm link` to install it locally:
 
 ```bash
-npm install -g gh-pr-check
+# Clone the repository
+git clone <repository-url>
+cd gh-pr-check
+
+# Install dependencies
+npm install
+
+# Create global symlink
+npm link
+
+# Now you can use the command globally
+gh-check
 ```
 
-### Option 2: Use with npx (no install)
+### Alternative: Run directly
+
+You can also run it directly without linking:
 
 ```bash
-npx gh-pr-check
+# From the project directory
+npm start
+# or
+node bin/gh-check.js
 ```
 
 ## Usage
@@ -38,8 +56,6 @@ Run from any git repository to automatically find and monitor open PRs:
 
 ```bash
 gh-check
-# or
-npx gh-pr-check
 ```
 
 **Behavior:**
@@ -72,8 +88,6 @@ Provide a PR URL to monitor a specific PR:
 
 ```bash
 gh-check https://github.com/owner/repo/pull/123
-# or
-npx gh-pr-check https://github.com/owner/repo/pull/123
 ```
 
 ### Options
