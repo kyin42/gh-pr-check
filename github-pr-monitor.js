@@ -36,7 +36,7 @@ function getOpenPRs() {
     console.error(
       "Make sure you have gh CLI installed and authenticated, and you're in a git repository"
     );
-    return null;
+    return [];
   }
 }
 
@@ -87,9 +87,7 @@ function promptUserForPR(prs) {
 
 async function selectPR(prs) {
   if (prs.length === 0) {
-    console.log("No open PRs found in this repository");
-    console.log("Exiting...");
-    process.exit(0);
+    return await promptForPRUrl();
   }
 
   if (prs.length === 1) {
@@ -100,18 +98,65 @@ async function selectPR(prs) {
   return await promptUserForPR(prs);
 }
 
+function promptForPRUrl() {
+  return new Promise((resolve) => {
+    const rl = readline.createInterface({
+      input: process.stdin,
+      output: process.stdout,
+    });
+
+    console.log("\nNo open PRs found in this repository.");
+    console.log("Please provide a GitHub PR URL to monitor.");
+    console.log("Example: https://github.com/owner/repo/pull/123\n");
+
+    rl.question("Enter PR URL (or 'q' to quit): ", (answer) => {
+      rl.close();
+
+      if (answer.toLowerCase() === "q" || answer.toLowerCase() === "quit") {
+        console.log("Exiting...");
+        resolve(null);
+        return;
+      }
+
+      if (!answer.trim()) {
+        console.log("No URL provided. Exiting...");
+        resolve(null);
+        return;
+      }
+
+      // Basic validation for GitHub PR URL format
+      if (!answer.match(/github\.com\/[^\/]+\/[^\/]+\/pull\/\d+/)) {
+        console.log(
+          "Invalid PR URL format. Expected: https://github.com/owner/repo/pull/123"
+        );
+        console.log("Exiting...");
+        resolve(null);
+        return;
+      }
+
+      console.log(`Using PR URL: ${answer}\n`);
+      resolve(answer);
+    });
+  });
+}
+
 async function checkAllChecksStatus(prUrl, showOutput = true, verbose = false) {
   try {
     if (!prUrl) {
       // Try to find open PRs automatically
       const openPRs = getOpenPRs();
-      if (!openPRs) {
-        return { error: true };
-      }
 
-      prUrl = await selectPR(openPRs);
-      if (!prUrl) {
-        return { error: true };
+      if (openPRs.length === 0) {
+        // No PRs found, ask for URL
+        prUrl = await promptForPRUrl();
+        if (!prUrl) {
+          return { error: true };
+        }
+      } else {
+        prUrl = await selectPR(openPRs);
+        if (!prUrl) {
+          return { error: true };
+        }
       }
     }
 
@@ -293,7 +338,8 @@ async function monitorAllChecksStatus(prUrl, verbose = false) {
     const result = await checkAllChecksStatus(prUrl, true, verbose);
 
     if (result.error) {
-      console.log("Error occurred, will retry in 20 seconds...");
+      console.log("Error occurred", result.error);
+      process.exit(1);
     } else if (result.completed) {
       const endTime = new Date();
       const duration = formatDuration(startTime, endTime);
