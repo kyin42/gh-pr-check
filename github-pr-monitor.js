@@ -239,6 +239,7 @@ async function checkAllChecksStatus(prUrl, showOutput = true, verbose = false) {
       hasFailures: hasFailures,
       checks: checks,
       prNumber: prNumber,
+      prUrl: prUrl,
       summary: {
         total: checks.length,
         pending: pendingChecks,
@@ -336,6 +337,7 @@ async function monitorAllChecksStatus(prUrl, verbose = false) {
     );
 
     const result = await checkAllChecksStatus(prUrl, true, verbose);
+    prUrl = result.prUrl;
 
     if (result.error) {
       console.log("Error occurred", result.error);
